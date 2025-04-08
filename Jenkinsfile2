@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Run on PR or main push') {
+            when {
+                anyOf {
+                    branch 'main'                             // for direct pushes to main
+                    changeRequest(target: 'main')             // for PRs to main
+                }
+            }
+            stages {
+                stage('Checkout code') {
+                    steps {
+                        checkout scm
+                    }
+                }
+
+                stage('Install Node and Dependencies') {
+                    steps {
+                        sh '''
+                            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                            sudo apt-get install -y nodejs
+                            npm install
+                        '''
+                    }
+                }
+
+                stage('Run Prettier') {
+                    steps {
+                        sh 'npx prettier --check "**/*.{js,ts,html,css,json,cls,yaml}"'
+                    }
+                }
+
+                stage('Install Salesforce CLI') {
+                    steps {
+                        sh 'npm install --global sfdx-cli'
+                    }
+                }
+
+                stage('Install Salesforce Code Analyzer') {
+                    steps {
+                        sh 'npm install -g @salesforce/sfdx-scanner'
+                    }
+                }
+
+                stage('Run Salesforce Code Analyzer') {
+                    steps {
+                        sh 'sfdx scanner:run --target force-app --format table'
+                    }
+                }
+            }
+        }
+    }
+}
